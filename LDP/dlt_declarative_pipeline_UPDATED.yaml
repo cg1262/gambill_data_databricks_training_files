@@ -1,0 +1,54 @@
+pipeline:
+  name: dlt_demo_file_drop
+  catalog: bronze_dev
+  schema: dlt_demo_files
+  target: bronze_dev.dlt_demo_files
+  storage: /Volumes/bronze_dev/dlt_demo_files/dlt_storage
+  trigger: continuous
+  configuration:
+    pipelines.usePhoton: "true"
+    pipelines.enableSchemaEvolution: "true"
+  compute:
+    mode: serverless
+    photon: true
+
+tables:
+  - name: bronze_raw
+    type: live.table
+    materialized: true
+    data_source:
+      type: volume
+      path: /Volumes/bronze_dev/dlt_demo_files/demo_synthetic_data/file_ingestion
+    options:
+      inferSchema: true
+      includeExisting: true
+      schemaEvolutionMode: addNewColumns
+
+  - name: silver_clean
+    type: live.table
+    expectations:
+      - name: email_not_null
+        constraint: "email IS NOT NULL"
+        action: drop
+      - name: id_must_exist
+        constraint: "id IS NOT NULL"
+        action: fail
+    query: |
+      SELECT
+        id,
+        name,
+        email,
+        lower(trim(email)) AS email_normalized,
+        CAST(timestamp AS TIMESTAMP) AS event_ts,
+        date(CAST(timestamp AS TIMESTAMP)) AS load_date
+      FROM live.bronze_raw
+      WHERE email IS NOT NULL
+
+  - name: gold_daily_users
+    type: live.table
+    query: |
+      SELECT
+        load_date,
+        COUNT(DISTINCT email_normalized) AS unique_users
+      FROM live.silver_clean
+      GROUP BY load_date
