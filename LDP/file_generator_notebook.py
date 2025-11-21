@@ -31,7 +31,7 @@ def rand_email():
     domain = random.choice(["example.com","corp.local","mail.test"])
     return f"{user}@{domain}"
 
-def make_records(n=250):
+def make_records(n=22250):
     ts = datetime.utcnow().isoformat() + "Z"
     import random
     names = ["Ava","Ben","Chris","Dee","Eli","Finn","Gia","Hari","Ivy","Jae"]
